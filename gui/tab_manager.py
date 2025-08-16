@@ -488,13 +488,15 @@ class TabManager:
             if self.active_tab_id != tab_id:
                 tab_frame.config(bg='#4a4a4a')
                 tab_label.config(bg='#4a4a4a', fg=COLORS['fg_primary'])
-                status_label.config(bg='#4a4a4a')
+                if status_label:
+                    status_label.config(bg='#4a4a4a')
 
         def on_tab_leave(event):
             if self.active_tab_id != tab_id:
                 tab_frame.config(bg=COLORS['bg_tertiary'])
                 tab_label.config(bg=COLORS['bg_tertiary'], fg=COLORS['fg_secondary'])
-                status_label.config(bg=COLORS['bg_tertiary'])
+                if status_label:
+                    status_label.config(bg=COLORS['bg_tertiary'])
 
         def on_close_enter(event):
             close_button.config(bg=COLORS['fg_error'], fg=COLORS['fg_primary'])
@@ -578,7 +580,8 @@ class TabManager:
             else:
                 tab_data.frame.config(bg=COLORS['bg_tertiary'], relief='solid')
                 tab_data.label.config(bg=COLORS['bg_tertiary'], fg=COLORS['fg_secondary'])
-                tab_data.status_label.config(bg=COLORS['bg_tertiary'])
+                if tab_data.status_label:
+                    tab_data.status_label.config(bg=COLORS['bg_tertiary'])
                 if tab_data.close_button:
                     tab_data.close_button.config(bg=COLORS['bg_tertiary'])
 
@@ -586,6 +589,8 @@ class TabManager:
         if active_tab.is_winners_tab and active_tab.container:
             active_tab.container.place(in_=self.tree_container, x=0, y=0, relwidth=1, relheight=1)
             self.update_folder_filter()
+        elif not active_tab.is_winners_tab and active_tab.container:
+            active_tab.container.place(in_=self.tree_container, x=0, y=0, relwidth=1, relheight=1)
         else:
             active_tab.tree.place(in_=self.tree_container, x=0, y=0, relwidth=1, relheight=1)
 
@@ -597,7 +602,8 @@ class TabManager:
         else:
             active_tab.frame.config(bg=COLORS['bg_accent'], relief='raised')
             active_tab.label.config(bg=COLORS['bg_accent'], fg=COLORS['fg_primary'], font=('Segoe UI', 9, 'bold'))
-            active_tab.status_label.config(bg=COLORS['bg_accent'])
+            if active_tab.status_label:
+                active_tab.status_label.config(bg=COLORS['bg_accent'])
             if active_tab.close_button:
                 active_tab.close_button.config(bg=COLORS['bg_accent'])
 
