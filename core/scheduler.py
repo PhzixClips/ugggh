@@ -4,13 +4,13 @@ Manages the APScheduler instance for scheduling video posts.
 
 import os
 import sys
-from datetime import datetime
-
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.date import DateTrigger
 
 # Ensure the project root is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.date import DateTrigger
 
 from data.database import DatabaseManager
 from api.youtube_client import YouTubeAPIClient

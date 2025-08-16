@@ -1,0 +1,8 @@
+google-api-python-client
+google-auth-oauthlib
+apscheduler
+requests
+isodate
+pywebview
+openai-whisper
+tzlocal
