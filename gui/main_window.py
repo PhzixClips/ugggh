@@ -20,6 +20,7 @@ from gui.settings_window import SettingsWindow
 from data.settings_manager import settings_manager
 
 # Core modules
+from core.batch_processor import process_videos
 from search.search_engine import SearchEngine
 from media.media_processor import MediaProcessor
 from analysis.video_analyzer import VideoAnalyzer
@@ -67,6 +68,9 @@ class MainWindow:
 
         # Search state
         self.current_search_active = False
+
+        # --- Poster state ---
+        self.use_watermark = tk.BooleanVar(value=True)
 
         # --- Widget references for dynamic updates ---
         self.url_label = None
@@ -332,7 +336,7 @@ class MainWindow:
         button_frame.pack(fill='x', pady=6)
 
         left_frame = tk.Frame(button_frame, bg=COLORS.get('bg_primary', '#16181d'))
-        left_frame.pack(side='left')
+        left_frame.pack(side='left', padx=(10, 0))
 
         buttons = [
             ('Preview', '#3B82F6', self._preview_video),
@@ -341,7 +345,7 @@ class MainWindow:
             ('Find Raw', '#A16207', self._find_raw_source),
             ('Library', '#FFD700', self._save_to_winners),
             ('Load Scripts', '#10B981', self._load_selected_transcripts),
-            ('Open Folder', '#222', self._open_clip_folder)
+            ('Open Folder', '#222', self._open_clip_folder),
         ]
 
         for text, color, command in buttons:
@@ -349,6 +353,17 @@ class MainWindow:
             btn = tk.Button(left_frame, text=text, bg=color, fg=('#000' if is_primary else COLORS.get('fg_on_accent', '#ffffff')), command=command, padx=10, pady=6, relief='flat', bd=0)
             btn.pack(side='left', padx=6)
             self.action_buttons[text] = btn
+
+        # --- Right side for Poster ---
+        right_frame = tk.Frame(button_frame, bg=COLORS.get('bg_primary', '#16181d'))
+        right_frame.pack(side='right', padx=(0, 10))
+
+        poster_button = tk.Button(right_frame, text='🚀 Poster', bg='#D946EF', fg='#ffffff', command=self._start_batch_post, padx=12, pady=6, relief='flat', bd=0)
+        poster_button.pack(side='left', padx=10)
+        self.action_buttons['Poster'] = poster_button
+
+        watermark_check = ttk.Checkbutton(right_frame, text="Add Watermark", variable=self.use_watermark)
+        watermark_check.pack(side='left', padx=10)
 
     # -----------------------------
     # Status bar
@@ -1177,6 +1192,35 @@ class MainWindow:
         except Exception as e:
             self.logger.error(f"Failed to open prompt builder for {video_id}: {e}")
             messagebox.showerror("Error", f"Could not open transcript file: {e}", parent=self.root)
+
+    def _start_batch_post(self):
+        """
+        Starts the batch posting process in a background thread.
+        """
+        use_watermark = self.use_watermark.get()
+
+        def task():
+            self.logger.info(f"Starting batch processing via GUI (Watermark: {use_watermark})...")
+            try:
+                process_videos(use_watermark=use_watermark)
+                self.logger.info("Batch processing finished.")
+                # It's good practice to show a completion message.
+                # Since we are in a different thread, we need to schedule it with the main loop.
+                self.root.after(0, lambda: messagebox.showinfo("Process Complete", "Batch video processing has finished. Check the logs for details."))
+            except Exception as e:
+                self.logger.error(f"An error occurred during batch processing: {e}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred during batch processing:\n{e}"))
+
+        # Confirm with the user before starting
+        if messagebox.askyesno("Start Batch Poster?",
+                               "This will start processing all videos in the 'videos/inbox' folder.\n\nThe app may be slow during processing. Are you sure you want to continue?"):
+
+            # Show an initial message
+            messagebox.showinfo("Process Started", f"Batch processing has started with watermark {'enabled' if use_watermark else 'disabled'}.\n\nYou will be notified when it's complete. See app.log for detailed progress.")
+
+            # Run the task in a background thread
+            thread = threading.Thread(target=task, daemon=True)
+            thread.start()
 
     def _on_winner_select(self, event=None):
         video = self.tab_manager.get_selected_video()

@@ -286,13 +286,14 @@ class MediaProcessor:
         else:
             return base_path
 
-    def preprocess_video(self, input_path: Path, output_path: Path) -> bool:
+    def preprocess_video(self, input_path: Path, output_path: Path, use_watermark: bool = True) -> bool:
         """
-        Converts a video to 9:16 aspect ratio and adds a watermark.
+        Converts a video to 9:16 aspect ratio and optionally adds a watermark.
 
         Args:
             input_path: Path to the input video.
             output_path: Path to save the processed video.
+            use_watermark: Whether to apply the watermark.
 
         Returns:
             True if preprocessing was successful, False otherwise.
@@ -308,7 +309,7 @@ class MediaProcessor:
 
             scale_filter = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1"
 
-            if WATERMARK_PATH and WATERMARK_PATH.exists():
+            if use_watermark and WATERMARK_PATH and WATERMARK_PATH.exists():
                 cmd.extend(['-i', str(WATERMARK_PATH)])
                 overlay_filter = "overlay=W-w-10:H-h-10"
                 # Chain the scale and overlay filters
