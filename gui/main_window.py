@@ -70,7 +70,7 @@ class MainWindow:
         self.current_search_active = False
 
         # --- Poster state ---
-        self.use_watermark = tk.BooleanVar(value=True)
+        # self.use_watermark is initialized in _create_gui
 
         # --- Widget references for dynamic updates ---
         self.url_label = None
@@ -106,6 +106,7 @@ class MainWindow:
 
     def _create_gui(self):
         self.root = tk.Tk()
+        self.use_watermark = tk.BooleanVar(value=True) # Must be created after root window
         self.root.title('YouTube Clip Agent - Modular Edition')
         self.root.geometry(WINDOW_GEOMETRY)
 
