@@ -3,7 +3,7 @@ Main application window and GUI controller (no presets, free-form Count)
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -21,6 +21,7 @@ from data.settings_manager import settings_manager
 
 # Core modules
 from core.batch_processor import process_videos
+from core.scheduler import SchedulerManager
 from search.search_engine import SearchEngine
 from media.media_processor import MediaProcessor
 from analysis.video_analyzer import VideoAnalyzer
@@ -59,6 +60,7 @@ class MainWindow:
         self.winners_manager = WinnersManager()
         self.media_processor = MediaProcessor()
         self.transcripts_manager = TranscriptsManager()
+        self.scheduler_manager = SchedulerManager()
 
         # UI components
         self.root = None
@@ -129,8 +131,15 @@ class MainWindow:
         # Initialize Winners tab and load data
         self._initialize_winners_tab()
 
+        # Create Poster tab
+        self.tab_manager.create_poster_tab()
+        self._create_poster_page()
+
         # Initial results tab
         self.tab_manager.add_new_tab("Search Results")
+
+        # Handle window closing
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
         self.logger.info("GUI initialized successfully")
 
@@ -394,6 +403,100 @@ class MainWindow:
         ttk.Button(right_frame, text='Set Timer', command=self._set_timer).pack(side='left', padx=10)
 
         ttk.Button(right_frame, text='Settings', command=self._open_settings).pack(side='left', padx=10)
+
+    def _create_poster_page(self):
+        """Creates the UI elements for the Poster page."""
+        poster_tab_data = self.tab_manager.tabs.get("poster_tab")
+        if not poster_tab_data or not poster_tab_data.container:
+            return
+
+        container = poster_tab_data.container
+
+        # Main frame with padding
+        main_frame = tk.Frame(container, bg=COLORS.get('bg_primary'), padx=20, pady=20)
+        main_frame.pack(fill='both', expand=True)
+
+        # --- File Selection ---
+        file_frame = tk.Frame(main_frame, bg=COLORS.get('bg_primary'))
+        file_frame.pack(fill='x', pady=(0, 15))
+
+        tk.Label(file_frame, text="Video File:", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_primary')).pack(side='left', anchor='w')
+
+        self.poster_filepath_var = tk.StringVar()
+        filepath_entry = tk.Entry(file_frame, textvariable=self.poster_filepath_var, state='readonly', width=80, bg=COLORS.get('bg_secondary'))
+        filepath_entry.pack(side='left', fill='x', expand=True, padx=10)
+
+        def select_video_file():
+            filepath = filedialog.askopenfilename(
+                title="Select a Video File",
+                filetypes=(("Video Files", "*.mp4 *.mov *.avi *.mkv"), ("All files", "*.*"))
+            )
+            if filepath:
+                self.poster_filepath_var.set(filepath)
+
+        browse_button = ttk.Button(file_frame, text="Browse...", command=select_video_file)
+        browse_button.pack(side='left')
+
+        # --- Metadata ---
+        metadata_frame = tk.Frame(main_frame, bg=COLORS.get('bg_primary'))
+        metadata_frame.pack(fill='both', expand=True, pady=(0, 15))
+
+        tk.Label(metadata_frame, text="Title:", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_primary')).pack(anchor='w')
+        self.poster_title_entry = tk.Entry(metadata_frame, width=80, bg=COLORS.get('bg_secondary'), fg=COLORS.get('fg_primary'))
+        self.poster_title_entry.pack(fill='x', pady=(2, 10))
+
+        tk.Label(metadata_frame, text="Description:", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_primary')).pack(anchor='w')
+        self.poster_description_text = tk.Text(metadata_frame, height=8, bg=COLORS.get('bg_secondary'), fg=COLORS.get('fg_primary'), wrap='word')
+        self.poster_description_text.pack(fill='both', expand=True, pady=(2, 10))
+
+        tk.Label(metadata_frame, text="Tags (comma-separated):", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_primary')).pack(anchor='w')
+        self.poster_tags_entry = tk.Entry(metadata_frame, width=80, bg=COLORS.get('bg_secondary'), fg=COLORS.get('fg_primary'))
+        self.poster_tags_entry.pack(fill='x', pady=(2, 10))
+
+        # --- Scheduling ---
+        schedule_frame = tk.Frame(main_frame, bg=COLORS.get('bg_primary'))
+        schedule_frame.pack(fill='x', pady=(10, 0))
+
+        tk.Label(schedule_frame, text="Schedule Time:", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_primary')).pack(side='left', anchor='w')
+        self.poster_schedule_entry = tk.Entry(schedule_frame, width=25, bg=COLORS.get('bg_secondary'), fg=COLORS.get('fg_primary'))
+        self.poster_schedule_entry.pack(side='left', padx=10)
+        tk.Label(schedule_frame, text="(YYYY-MM-DD HH:MM:SS)", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_secondary')).pack(side='left', anchor='w')
+
+        schedule_button = tk.Button(schedule_frame, text="Schedule Post", bg=COLORS.get('success'), fg=COLORS.get('fg_on_accent'), command=self._schedule_post)
+        schedule_button.pack(side='right', padx=20)
+
+        # --- Queue Display ---
+        queue_frame = tk.Frame(main_frame, bg=COLORS.get('bg_primary'))
+        queue_frame.pack(fill='both', expand=True, pady=(20, 0))
+
+        queue_header_frame = tk.Frame(queue_frame, bg=COLORS.get('bg_primary'))
+        queue_header_frame.pack(fill='x')
+        tk.Label(queue_header_frame, text="Scheduled Posts Queue", bg=COLORS.get('bg_primary'), fg=COLORS.get('fg_accent')).pack(side='left')
+
+        refresh_button = ttk.Button(queue_header_frame, text="Refresh", command=self._populate_schedule_queue)
+        refresh_button.pack(side='right')
+
+        columns = ('id', 'status', 'scheduled_time', 'title', 'filepath')
+        self.poster_queue_tree = ttk.Treeview(queue_frame, columns=columns, show='headings')
+
+        for col in columns:
+            self.poster_queue_tree.heading(col, text=col.replace('_', ' ').title())
+            self.poster_queue_tree.column(col, width=150)
+
+        self.poster_queue_tree.column('id', width=50, anchor='center')
+        self.poster_queue_tree.column('status', width=100, anchor='center')
+        self.poster_queue_tree.column('title', width=250)
+        self.poster_queue_tree.column('filepath', width=300)
+
+        self.poster_queue_tree.pack(fill='both', expand=True, pady=(5, 0))
+
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(self.poster_queue_tree, orient="vertical", command=self.poster_queue_tree.yview)
+        self.poster_queue_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+
+        # Populate the queue initially
+        self._populate_schedule_queue()
 
     def _open_settings(self):
         """Opens the settings window and applies changes upon closing."""
@@ -1223,6 +1326,75 @@ class MainWindow:
             thread = threading.Thread(target=task, daemon=True)
             thread.start()
 
+    def _schedule_post(self):
+        """Gathers data from the Poster UI and schedules the post."""
+        filepath = self.poster_filepath_var.get()
+        title = self.poster_title_entry.get()
+        description = self.poster_description_text.get("1.0", tk.END).strip()
+        tags = self.poster_tags_entry.get()
+        schedule_time_str = self.poster_schedule_entry.get()
+
+        # --- Validation ---
+        if not filepath:
+            messagebox.showerror("Error", "Please select a video file.")
+            return
+        if not title:
+            messagebox.showerror("Error", "Please enter a title.")
+            return
+        if not schedule_time_str:
+            messagebox.showerror("Error", "Please enter a schedule time.")
+            return
+
+        try:
+            scheduled_time = datetime.strptime(schedule_time_str, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD HH:MM:SS.")
+            return
+
+        if scheduled_time < datetime.now():
+            messagebox.showerror("Error", "Schedule time must be in the future.")
+            return
+
+        # --- Schedule the job ---
+        post_id = self.scheduler_manager.add_job(
+            video_filepath=filepath,
+            title=title,
+            description=description,
+            tags=tags,
+            scheduled_time=scheduled_time
+        )
+
+        if post_id:
+            messagebox.showinfo("Success", f"Video scheduled successfully! Post ID: {post_id}")
+            # Clear the form
+            self.poster_filepath_var.set("")
+            self.poster_title_entry.delete(0, tk.END)
+            self.poster_description_text.delete("1.0", tk.END)
+            self.poster_tags_entry.delete(0, tk.END)
+            self.poster_schedule_entry.delete(0, tk.END)
+        else:
+            messagebox.showerror("Error", "Failed to schedule the post. Check the logs for details.")
+
+        # Refresh the queue view
+        self._populate_schedule_queue()
+
+    def _populate_schedule_queue(self):
+        """Clears and repopulates the schedule queue treeview from the database."""
+        # Clear existing items
+        for item in self.poster_queue_tree.get_children():
+            self.poster_queue_tree.delete(item)
+
+        # Fetch new items
+        posts = self.db_manager.get_scheduled_posts()
+        for post in posts:
+            self.poster_queue_tree.insert('', 'end', values=(
+                post['id'],
+                post['status'],
+                post['scheduled_time'],
+                post['title'],
+                post['video_filepath']
+            ))
+
     def _on_winner_select(self, event=None):
         video = self.tab_manager.get_selected_video()
         is_manual = video and video.get('video_id', '').startswith('manual_')
@@ -1313,3 +1485,9 @@ class MainWindow:
     def _manage_folders(self):
         FolderManagerDialog(self.root, self.winners_manager)
         self.tab_manager.update_folder_filter()
+
+    def _on_closing(self):
+        """Handle window closing event."""
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            self.scheduler_manager.shutdown()
+            self.root.destroy()

@@ -46,6 +46,19 @@ class DatabaseManager:
                     details TEXT
                 );
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    video_filepath TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    tags TEXT,
+                    scheduled_time TIMESTAMP NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    youtube_video_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
             self.conn.commit()
         except sqlite3.Error as e:
             print(f"Error creating tables: {e}")
@@ -107,3 +120,63 @@ class DatabaseManager:
         if self.conn:
             self.conn.close()
             self.conn = None
+
+    def add_scheduled_post(self, video_filepath: str, title: str, description: str, tags: str, scheduled_time: datetime) -> int:
+        """Adds a new post to the schedule."""
+        if not self.conn:
+            return -1
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                INSERT INTO scheduled_posts (video_filepath, title, description, tags, scheduled_time)
+                VALUES (?, ?, ?, ?, ?)
+            """, (video_filepath, title, description, tags, scheduled_time))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            print(f"Error adding scheduled post: {e}")
+            return -1
+
+    def get_scheduled_posts(self, status: str = None):
+        """
+        Retrieves scheduled posts from the database.
+
+        Args:
+            status: Optional filter to get posts with a specific status (e.g., 'pending').
+
+        Returns:
+            A list of rows representing the scheduled posts.
+        """
+        if not self.conn:
+            return []
+        try:
+            cursor = self.conn.cursor()
+            query = "SELECT * FROM scheduled_posts"
+            params = []
+            if status:
+                query += " WHERE status = ?"
+                params.append(status)
+            query += " ORDER BY scheduled_time ASC"
+
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except sqlite3.Error as e:
+            print(f"Error getting scheduled posts: {e}")
+            return []
+
+    def update_scheduled_post_status(self, post_id: int, status: str, youtube_video_id: str = None):
+        """Updates the status of a scheduled post."""
+        if not self.conn:
+            return False
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                UPDATE scheduled_posts
+                SET status = ?, youtube_video_id = ?
+                WHERE id = ?
+            """, (status, youtube_video_id, post_id))
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Error updating scheduled post status: {e}")
+            return False

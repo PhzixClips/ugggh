@@ -297,6 +297,44 @@ class TabManager:
 
         return tab_id
 
+    def create_poster_tab(self) -> str:
+        """Creates the 'Poster' tab with a custom frame for content."""
+        tab_id = "poster_tab"
+        if tab_id in self.tabs:
+            return tab_id
+
+        display_name = "Poster"
+
+        tab_frame = tk.Frame(self.tabs_container, bg=COLORS['bg_tertiary'], relief='solid', bd=1)
+
+        tab_label = tk.Label(
+            tab_frame, text=display_name, bg=COLORS['bg_tertiary'], fg=COLORS['fg_secondary'],
+            font=('Segoe UI', 10, 'bold'), padx=12, pady=8
+        )
+        tab_label.pack(fill='both', expand=True)
+
+        # Create a container frame for the poster page content
+        poster_container = tk.Frame(self.tree_container, bg=COLORS.get('bg_primary'))
+
+        # Note: The Treeview is a mandatory part of the TabData structure.
+        # We'll create one but we won't pack or place it for this custom tab.
+        # This is a small hack to reuse the existing structure.
+        # A better long-term solution might be to make the tree optional in TabData.
+        dummy_tree = self._create_tab_treeview()
+
+        self._bind_tab_events(tab_frame, tab_label, None, None, tab_id)
+
+        tab_data = TabData(
+            tab_id=tab_id, frame=tab_frame, label=tab_label, status_label=None,
+            close_button=None, tree=dummy_tree, search_term="Poster",
+            results=[], status_text='idle', tooltip_data={}, is_winners_tab=False,
+            container=poster_container
+        )
+
+        self.tabs[tab_id] = tab_data
+        tab_frame.pack(side='left', fill='y', padx=2, pady=2)
+        return tab_id
+
     def add_new_tab(self, search_term: str = "") -> str:
         tab_id = self._generate_tab_id()
         display_name = search_term if search_term else "New Search"
