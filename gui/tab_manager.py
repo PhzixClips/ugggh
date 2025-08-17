@@ -568,7 +568,7 @@ class TabManager:
         if tab_id not in self.tabs:
             return
         for _, tab_data in self.tabs.items():
-            if tab_data.is_winners_tab and tab_data.container:
+            if tab_data.container:
                 tab_data.container.place_forget()
             else:
                 tab_data.tree.place_forget()
