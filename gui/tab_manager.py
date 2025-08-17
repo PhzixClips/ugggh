@@ -513,8 +513,9 @@ class TabManager:
         tab_label.bind("<Leave>", on_tab_leave)
         tab_frame.bind("<Enter>", on_tab_enter)
         tab_frame.bind("<Leave>", on_tab_leave)
-        close_button.bind("<Enter>", on_close_enter)
-        close_button.bind("<Leave>", on_close_leave)
+        if close_button:
+            close_button.bind("<Enter>", on_close_enter)
+            close_button.bind("<Leave>", on_close_leave)
 
     def _bind_winners_tab_events(self, tab_frame: tk.Frame, tab_label: tk.Label, tab_id: str):
         def on_tab_click(event=None):
